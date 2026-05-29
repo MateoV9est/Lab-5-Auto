@@ -1,615 +1,682 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SCADA — Control de Nivel</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg:       #0a0e14;
-      --panel:    #111820;
-      --border:   #1e2d3d;
-      --accent:   #00d4ff;
-      --green:    #00ff88;
-      --yellow:   #ffd600;
-      --red:      #ff4444;
-      --text:     #c9d8e8;
-      --muted:    #4a6278;
-      --font-mono: 'Share Tech Mono', monospace;
-      --font-body: 'Barlow', sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+<title>SCADA — Sistema de Tanques</title>
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    /* Scanline overlay */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,212,255,0.015) 2px,
-        rgba(0,212,255,0.015) 4px
-      );
-      pointer-events: none;
-      z-index: 100;
-    }
+<style>
 
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 32px;
-      border-bottom: 1px solid var(--border);
-      background: var(--panel);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
+:root{
+  --bg:#f4f7fb;
+  --panel:#ffffff;
+  --border:#dfe7f1;
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+  --primary:#2d8cff;
+  --primary-soft:#dcebff;
 
-    .logo-badge {
-      width: 36px; height: 36px;
-      border: 2px solid var(--accent);
-      border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--accent);
-      letter-spacing: 1px;
-    }
+  --tank1:#3b82f6;
+  --tank2:#14b8a6;
+  --tank3:#8b5cf6;
 
-    header h1 {
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--text);
-    }
+  --temp:#ff7849;
+  --mix:#22c55e;
 
-    header p {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 1px;
-      margin-top: 2px;
-    }
+  --text:#1e293b;
+  --muted:#64748b;
 
-    .status-bar {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
+  --shadow:0 10px 30px rgba(0,0,0,0.08);
 
-    .status-dot {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--muted);
-    }
+  --radius:22px;
+}
 
-    .dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px var(--green);
-      animation: blink 1.5s ease-in-out infinite;
-    }
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
 
-    .dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); animation: none; }
+body{
+  background:linear-gradient(135deg,#eef4ff,#f8fbff);
+  font-family:'Inter',sans-serif;
+  color:var(--text);
+  min-height:100vh;
+}
 
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
+header{
+  width:100%;
+  padding:24px 40px;
+  background:rgba(255,255,255,0.8);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
 
-    #clock {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--accent);
-    }
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
 
-    /* Main layout */
-    .main {
-      padding: 24px 32px;
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      grid-template-rows: auto 1fr;
-      gap: 20px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
+  position:sticky;
+  top:0;
+  z-index:100;
+}
 
-    /* KPI cards column */
-    .kpi-col {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      grid-row: 1 / 3;
-    }
+.header-left{
+  display:flex;
+  align-items:center;
+  gap:18px;
+}
 
-    .kpi-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px 16px;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.3s;
-    }
+.logo{
+  width:56px;
+  height:56px;
+  border-radius:18px;
 
-    .kpi-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: var(--accent);
-    }
+  background:linear-gradient(135deg,var(--primary),#5fb4ff);
 
-    .kpi-card.green::before { background: var(--green); }
-    .kpi-card.yellow::before { background: var(--yellow); }
-    .kpi-card.red::before { background: var(--red); }
+  display:flex;
+  align-items:center;
+  justify-content:center;
 
-    .kpi-label {
-      font-size: 10px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 12px;
-    }
+  color:white;
+  font-weight:700;
+  font-size:20px;
 
-    .kpi-value {
-      font-family: var(--font-mono);
-      font-size: 36px;
-      font-weight: 400;
-      color: var(--accent);
-      line-height: 1;
-      transition: color 0.3s;
-    }
+  box-shadow:0 10px 20px rgba(45,140,255,0.25);
+}
 
-    .kpi-card.green .kpi-value { color: var(--green); }
-    .kpi-card.yellow .kpi-value { color: var(--yellow); }
+.header-title h1{
+  font-size:24px;
+  font-weight:700;
+}
 
-    .kpi-unit {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 6px;
-      font-family: var(--font-mono);
-    }
+.header-title p{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:14px;
+}
 
-    /* Tank visual */
-    .tank-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-    }
+.status{
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
 
-    .tank-outer {
-      width: 60px;
-      height: 100px;
-      border: 2px solid var(--border);
-      border-radius: 4px;
-      position: relative;
-      overflow: hidden;
-      background: rgba(0,212,255,0.03);
-    }
+.status-box{
+  background:white;
+  border:1px solid var(--border);
+  padding:10px 16px;
+  border-radius:14px;
 
-    .tank-fill {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      background: linear-gradient(to top, rgba(0,212,255,0.6), rgba(0,212,255,0.2));
-      transition: height 0.8s ease;
-      height: 0%;
-    }
+  display:flex;
+  align-items:center;
+  gap:10px;
 
-    .tank-pct {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--muted);
-    }
+  box-shadow:var(--shadow);
+}
 
-    /* Charts area */
-    .charts-area {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
+.dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:#22c55e;
 
-    .chart-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px 24px;
-    }
+  box-shadow:0 0 10px #22c55e;
+}
 
-    .chart-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
+#clock{
+  font-weight:600;
+  color:var(--primary);
+}
 
-    .chart-title {
-      font-size: 11px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
+.main{
+  max-width:1450px;
+  margin:auto;
+  padding:40px 28px;
 
-    .chart-legend {
-      display: flex;
-      gap: 16px;
-    }
+  display:flex;
+  flex-direction:column;
+  gap:28px;
+}
 
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 10px;
-      color: var(--muted);
-      font-family: var(--font-mono);
-    }
+.cards-top{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:24px;
+}
 
-    .legend-dot {
-      width: 8px; height: 2px;
-      border-radius: 1px;
-    }
+.info-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
 
-    canvas { width: 100% !important; }
+  padding:28px;
 
-    /* Table */
-    .table-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px 24px;
-      grid-column: 1 / 3;
-    }
+  box-shadow:var(--shadow);
 
-    .table-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
+  position:relative;
+  overflow:hidden;
+}
 
-    .table-title {
-      font-size: 11px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
+.info-card::before{
+  content:'';
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:5px;
+}
 
-    .record-count {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--muted);
-    }
+.temp-card::before{
+  background:var(--temp);
+}
 
-    .table-wrap {
-      overflow-x: auto;
-      max-height: 260px;
-      overflow-y: auto;
-    }
+.mix-card::before{
+  background:var(--mix);
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-family: var(--font-mono);
-      font-size: 12px;
-    }
+.info-label{
+  color:var(--muted);
+  font-size:14px;
+  margin-bottom:16px;
+}
 
-    thead {
-      position: sticky;
-      top: 0;
-      background: var(--panel);
-    }
+.info-value{
+  font-size:52px;
+  font-weight:700;
+  line-height:1;
+}
 
-    th {
-      text-align: left;
-      padding: 8px 16px;
-      font-size: 10px;
-      letter-spacing: 2px;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border);
-      text-transform: uppercase;
-    }
+.temp-card .info-value{
+  color:var(--temp);
+}
 
-    td {
-      padding: 10px 16px;
-      border-bottom: 1px solid rgba(30,45,61,0.5);
-      color: var(--text);
-      transition: background 0.2s;
-    }
+.mix-card .info-value{
+  color:var(--mix);
+}
 
-    tr:hover td { background: rgba(0,212,255,0.03); }
+.info-unit{
+  margin-top:10px;
+  color:var(--muted);
+}
 
-    tr:first-child td { color: var(--accent); }
+.tanks-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:28px;
+}
 
-    .tag-sp    { color: var(--yellow); }
-    .tag-nivel { color: var(--accent); }
-    .tag-rpm   { color: var(--green); }
+.tank-card{
+  background:white;
+  border-radius:30px;
+  padding:30px;
+  border:1px solid var(--border);
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  box-shadow:var(--shadow);
 
-    .fade-in {
-      animation: fadeIn 0.5s ease forwards;
-    }
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  </style>
+.tank-title{
+  font-size:20px;
+  font-weight:700;
+  margin-bottom:24px;
+}
+
+.tank-visual{
+  width:140px;
+  height:320px;
+
+  border-radius:30px;
+
+  position:relative;
+
+  overflow:hidden;
+
+  background:#edf4ff;
+
+  border:4px solid #d6e4f5;
+}
+
+.tank-liquid{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+
+  height:0%;
+
+  transition:height 0.8s ease;
+
+  border-radius:24px 24px 0 0;
+}
+
+.tank1{
+  background:linear-gradient(to top,#2563eb,#60a5fa);
+}
+
+.tank2{
+  background:linear-gradient(to top,#0f766e,#2dd4bf);
+}
+
+.tank3{
+  background:linear-gradient(to top,#7c3aed,#a78bfa);
+}
+
+.tank-data{
+  margin-top:28px;
+  width:100%;
+}
+
+.tank-row{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:12px;
+}
+
+.tank-row span:first-child{
+  color:var(--muted);
+}
+
+.tank-row span:last-child{
+  font-weight:600;
+}
+
+.percent{
+  margin-top:10px;
+  font-size:40px;
+  font-weight:700;
+}
+
+.p1{ color:var(--tank1); }
+.p2{ color:var(--tank2); }
+.p3{ color:var(--tank3); }
+
+.footer-card{
+  background:white;
+  border-radius:24px;
+  border:1px solid var(--border);
+
+  padding:24px 30px;
+
+  box-shadow:var(--shadow);
+
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:12px;
+}
+
+.footer-card h3{
+  font-size:16px;
+}
+
+.footer-card p{
+  color:var(--muted);
+}
+
+@media(max-width:768px){
+
+  header{
+    padding:20px;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  .tank-visual{
+    width:120px;
+    height:260px;
+  }
+
+  .info-value{
+    font-size:42px;
+  }
+
+}
+
+</style>
 </head>
 <body>
 
 <header>
+
   <div class="header-left">
-    <div class="logo-badge">PLC</div>
-    <div>
-      <h1>Sistema de Control de Nivel</h1>
-      <p>SUPERVISIÓN EN TIEMPO REAL — UMNG</p>
+
+    <div class="logo">
+      PLC
     </div>
-  </div>
-  <div class="status-bar">
-    <div class="status-dot">
-      <div class="dot" id="conn-dot"></div>
-      <span id="conn-label">CONECTADO</span>
+
+    <div class="header-title">
+      <h1>Sistema Inteligente de Tanques</h1>
+      <p>Monitoreo industrial en tiempo real</p>
     </div>
-    <div id="clock">--:--:--</div>
+
   </div>
+
+  <div class="status">
+
+    <div class="status-box">
+      <div class="dot"></div>
+      <span id="status-text">Conectado</span>
+    </div>
+
+    <div class="status-box">
+      <span id="clock">--:--:--</span>
+    </div>
+
+  </div>
+
 </header>
 
 <div class="main">
 
-  <!-- KPI Column -->
-  <div class="kpi-col">
+  <!-- Variables -->
+  <div class="cards-top">
 
-    <div class="kpi-card yellow">
-      <div class="kpi-label">Setpoint (SP)</div>
-      <div class="kpi-value" id="val-sp">—</div>
-      <div class="kpi-unit">cm</div>
-    </div>
+    <div class="info-card temp-card">
 
-    <div class="kpi-card">
-      <div class="kpi-label">Nivel</div>
-      <div class="kpi-value" id="val-nivel">—</div>
-      <div class="kpi-unit">cm</div>
-      <div class="tank-wrap">
-        <div class="tank-outer">
-          <div class="tank-fill" id="tank-fill"></div>
-        </div>
-        <div class="tank-pct" id="tank-pct">0%</div>
+      <div class="info-label">
+        Temperatura del proceso
       </div>
+
+      <div class="info-value" id="temp-value">
+        --
+      </div>
+
+      <div class="info-unit">
+        °C
+      </div>
+
     </div>
 
-    <div class="kpi-card green">
-      <div class="kpi-label">RPM Variador</div>
-      <div class="kpi-value" id="val-rpm">—</div>
-      <div class="kpi-unit">rpm</div>
-    </div>
+    <div class="info-card mix-card">
 
-    <div class="kpi-card" style="margin-top:auto;">
-      <div class="kpi-label">Último registro</div>
-      <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:4px;" id="last-ts">—</div>
+      <div class="info-label">
+        Velocidad de mezclado
+      </div>
+
+      <div class="info-value" id="mix-value">
+        --
+      </div>
+
+      <div class="info-unit">
+        RPM
+      </div>
+
     </div>
 
   </div>
 
-  <!-- Charts -->
-  <div class="charts-area">
-    <div class="chart-card">
-      <div class="chart-header">
-        <span class="chart-title">Nivel vs Setpoint</span>
-        <div class="chart-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Nivel</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>SP</div>
-        </div>
+  <!-- Tanques -->
+  <div class="tanks-grid">
+
+    <!-- Tanque 1 -->
+    <div class="tank-card">
+
+      <div class="tank-title">
+        Tanque 1
       </div>
-      <canvas id="chart-nivel" height="140"></canvas>
+
+      <div class="tank-visual">
+
+        <div class="tank-liquid tank1" id="fill1"></div>
+
+      </div>
+
+      <div class="percent p1" id="pct1">
+        0%
+      </div>
+
+      <div class="tank-data">
+
+        <div class="tank-row">
+          <span>Volumen</span>
+          <span id="vol1">0 L</span>
+        </div>
+
+        <div class="tank-row">
+          <span>Nivel</span>
+          <span id="nivel1">0 cm</span>
+        </div>
+
+      </div>
+
     </div>
 
-    <div class="chart-card">
-      <div class="chart-header">
-        <span class="chart-title">RPM Variador</span>
-        <div class="chart-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>RPM</div>
-        </div>
+    <!-- Tanque 2 -->
+    <div class="tank-card">
+
+      <div class="tank-title">
+        Tanque 2
       </div>
-      <canvas id="chart-rpm" height="110"></canvas>
+
+      <div class="tank-visual">
+
+        <div class="tank-liquid tank2" id="fill2"></div>
+
+      </div>
+
+      <div class="percent p2" id="pct2">
+        0%
+      </div>
+
+      <div class="tank-data">
+
+        <div class="tank-row">
+          <span>Volumen</span>
+          <span id="vol2">0 L</span>
+        </div>
+
+        <div class="tank-row">
+          <span>Nivel</span>
+          <span id="nivel2">0 cm</span>
+        </div>
+
+      </div>
+
     </div>
+
+    <!-- Tanque 3 -->
+    <div class="tank-card">
+
+      <div class="tank-title">
+        Tanque 3
+      </div>
+
+      <div class="tank-visual">
+
+        <div class="tank-liquid tank3" id="fill3"></div>
+
+      </div>
+
+      <div class="percent p3" id="pct3">
+        0%
+      </div>
+
+      <div class="tank-data">
+
+        <div class="tank-row">
+          <span>Volumen</span>
+          <span id="vol3">0 L</span>
+        </div>
+
+        <div class="tank-row">
+          <span>Nivel</span>
+          <span id="nivel3">0 cm</span>
+        </div>
+
+      </div>
+
+    </div>
+
   </div>
 
-  <!-- Table -->
-  <div class="table-card">
-    <div class="table-header">
-      <span class="table-title">Historial de Registros</span>
-      <span class="record-count" id="rec-count">0 registros</span>
+  <!-- Footer -->
+  <div class="footer-card">
+
+    <div>
+      <h3>Última actualización</h3>
+      <p id="last-update">--</p>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Timestamp</th>
-            <th>SP (cm)</th>
-            <th>Nivel (cm)</th>
-            <th>RPM</th>
-          </tr>
-        </thead>
-        <tbody id="tabla-body">
-          <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px;">Cargando datos...</td></tr>
-        </tbody>
-      </table>
+
+    <div>
+      <h3>Estado del sistema</h3>
+      <p>Operación normal</p>
     </div>
+
   </div>
 
 </div>
 
 <script>
-  // ── Configuración Supabase ──────────────────────────────
-  const SUPABASE_URL     = "https://tzmvrhqsctdcmguhjqaq.supabase.co";
-  //const SUPABASE_API_KEY = "sb_secret_cyeHICnWfSs9YSf0TNWsew_9Hn1GMnR";
-  const SUPABASE_API_KEY = "sb_publishable_K1FBHTsVGnJ9Cl-ucrso_g_yySEnco1";
-  const TABLA            = "proceso_nivel";
-  const LIMITE           = 50;
-  const INTERVALO_MS     = 1000;
-  // ────────────────────────────────────────────────────────
 
-  // ── Chart.js setup ─────────────────────────────────────
-  const commonOpts = {
-    responsive: true,
-    animation: { duration: 300 },
-    plugins: { legend: { display: false }, tooltip: {
-      backgroundColor: '#111820',
-      borderColor: '#1e2d3d',
-      borderWidth: 1,
-      titleColor: '#c9d8e8',
-      bodyColor: '#4a6278',
-      titleFont: { family: 'Share Tech Mono', size: 11 },
-      bodyFont:  { family: 'Share Tech Mono', size: 11 },
-    }},
-    scales: {
-      x: { ticks: { color: '#4a6278', font: { family: 'Share Tech Mono', size: 9 }, maxTicksLimit: 8 }, grid: { color: '#1e2d3d' } },
-      y: { ticks: { color: '#4a6278', font: { family: 'Share Tech Mono', size: 10 } }, grid: { color: '#1e2d3d' } }
+const SUPABASE_URL =
+"https://tzmvrhqsctdcmguhjqaq.supabase.co";
+
+const SUPABASE_API_KEY =
+"TU_API_KEY";
+
+const TABLA = "proceso_tanques";
+
+const INTERVALO_MS = 1000;
+
+// Clock
+setInterval(() => {
+
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-CO');
+
+},1000);
+
+// Fetch
+async function fetchData(){
+
+  try{
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLA}?select=*&order=timestamp.desc&limit=1`,
+      {
+        headers:{
+          apikey:SUPABASE_API_KEY,
+          Authorization:`Bearer ${SUPABASE_API_KEY}`
+        }
+      }
+    );
+
+    if(!res.ok)
+      throw new Error(res.status);
+
+    const rows = await res.json();
+
+    if(rows.length > 0){
+
+      updateUI(rows[0]);
+
     }
-  };
 
-  const ctxNivel = document.getElementById('chart-nivel').getContext('2d');
-  const chartNivel = new Chart(ctxNivel, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        { label: 'Nivel', data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.05)', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true },
-        { label: 'SP',    data: [], borderColor: '#ffd600', backgroundColor: 'transparent',           borderWidth: 1.5, pointRadius: 0, borderDash: [4,4], tension: 0 }
-      ]
-    },
-    options: commonOpts
-  });
+    document.getElementById('status-text').textContent =
+      'Conectado';
 
-  const ctxRpm = document.getElementById('chart-rpm').getContext('2d');
-  const chartRpm = new Chart(ctxRpm, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        { label: 'RPM', data: [], borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.05)', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true }
-      ]
-    },
-    options: commonOpts
-  });
+  }
+  catch(err){
 
-  // ── Clock ───────────────────────────────────────────────
-  setInterval(() => {
-    document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-CO');
-  }, 1000);
+    console.error(err);
 
-  // ── Fetch data ──────────────────────────────────────────
-  async function fetchData() {
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/${TABLA}?select=*&order=timestamp.desc&limit=${LIMITE}`,
-        { headers: { apikey: SUPABASE_API_KEY, Authorization: `Bearer ${SUPABASE_API_KEY}` } }
-      );
-      if (!res.ok) throw new Error(res.status);
-      const rows = await res.json();
-      updateUI(rows);
-      setOnline(true);
-    } catch (e) {
-      console.error(e);
-      setOnline(false);
-    }
+    document.getElementById('status-text').textContent =
+      'Sin conexión';
+
   }
 
-  function setOnline(online) {
-    const dot   = document.getElementById('conn-dot');
-    const label = document.getElementById('conn-label');
-    dot.className   = online ? 'dot' : 'dot offline';
-    label.textContent = online ? 'CONECTADO' : 'SIN CONEXIÓN';
-  }
+}
 
-  function fmt(ts) {
-    return new Date(ts).toLocaleTimeString('es-CO', { hour12: false });
-  }
+function updateUI(data){
 
-  function fmtFull(ts) {
-    return new Date(ts).toLocaleString('es-CO', { hour12: false });
-  }
+  // Valores máximos simulados
+  const MAX_NIVEL = 100;
+  const MAX_VOL   = 1000;
 
-  function updateUI(rows) {
-    if (!rows.length) return;
+  const n1 = Number(data.nivelt1 || 0);
+  const n2 = Number(data.nivelt2 || 0);
+  const n3 = Number(data.nivelt3 || 0);
 
-    const latest = rows[0];
+  const temperatura =
+    Number(data.temperatura || 0);
 
-    // KPIs
-    document.getElementById('val-sp').textContent    = latest.sp    != null ? Number(latest.sp).toFixed(1)    : '—';
-    document.getElementById('val-nivel').textContent = latest.nivel != null ? Number(latest.nivel).toFixed(1) : '—';
-    document.getElementById('val-rpm').textContent   = latest.rpm   != null ? Number(latest.rpm).toFixed(0)   : '—';
-    document.getElementById('last-ts').textContent   = fmtFull(latest.timestamp);
+  const mezcla =
+    Number(data.velmezclado || 0);
 
-    // Tank (asume max 100 cm)
-    const pct = Math.min(100, Math.max(0, (latest.nivel / 100) * 100));
-    document.getElementById('tank-fill').style.height = pct + '%';
-    document.getElementById('tank-pct').textContent   = pct.toFixed(0) + '%';
+  // Porcentajes
+  const p1 = Math.min(100,(n1/MAX_NIVEL)*100);
+  const p2 = Math.min(100,(n2/MAX_NIVEL)*100);
+  const p3 = Math.min(100,(n3/MAX_NIVEL)*100);
 
-    // Charts — invertir para orden cronológico
-    const reversed = [...rows].reverse();
-    const labels   = reversed.map(r => fmt(r.timestamp));
-    const niveles  = reversed.map(r => r.nivel ?? 0);
-    const sps      = reversed.map(r => r.sp ?? 0);
-    const rpms     = reversed.map(r => r.rpm ?? 0);
+  // Visual tanques
+  document.getElementById('fill1').style.height =
+    p1 + '%';
 
-    chartNivel.data.labels            = labels;
-    chartNivel.data.datasets[0].data  = niveles;
-    chartNivel.data.datasets[1].data  = sps;
-    chartNivel.update();
+  document.getElementById('fill2').style.height =
+    p2 + '%';
 
-    chartRpm.data.labels           = labels;
-    chartRpm.data.datasets[0].data = rpms;
-    chartRpm.update();
+  document.getElementById('fill3').style.height =
+    p3 + '%';
 
-    // Tabla
-    document.getElementById('rec-count').textContent = `${rows.length} registros`;
-    const tbody = document.getElementById('tabla-body');
-    tbody.innerHTML = rows.map((r, i) => `
-      <tr class="${i === 0 ? 'fade-in' : ''}">
-        <td style="color:var(--muted)">${r.id}</td>
-        <td style="color:var(--muted)">${fmtFull(r.timestamp)}</td>
-        <td class="tag-sp">${r.sp    != null ? Number(r.sp).toFixed(1)    : '—'}</td>
-        <td class="tag-nivel">${r.nivel != null ? Number(r.nivel).toFixed(1) : '—'}</td>
-        <td class="tag-rpm">${r.rpm   != null ? Number(r.rpm).toFixed(0)   : '—'}</td>
-      </tr>
-    `).join('');
-  }
+  // Texto %
+  document.getElementById('pct1').textContent =
+    p1.toFixed(0) + '%';
 
-  // ── Start ───────────────────────────────────────────────
-  fetchData();
-  setInterval(fetchData, INTERVALO_MS);
+  document.getElementById('pct2').textContent =
+    p2.toFixed(0) + '%';
+
+  document.getElementById('pct3').textContent =
+    p3.toFixed(0) + '%';
+
+  // Niveles
+  document.getElementById('nivel1').textContent =
+    n1.toFixed(1) + ' cm';
+
+  document.getElementById('nivel2').textContent =
+    n2.toFixed(1) + ' cm';
+
+  document.getElementById('nivel3').textContent =
+    n3.toFixed(1) + ' cm';
+
+  // Volúmenes simulados
+  document.getElementById('vol1').textContent =
+    ((p1/100)*MAX_VOL).toFixed(0) + ' L';
+
+  document.getElementById('vol2').textContent =
+    ((p2/100)*MAX_VOL).toFixed(0) + ' L';
+
+  document.getElementById('vol3').textContent =
+    ((p3/100)*MAX_VOL).toFixed(0) + ' L';
+
+  // Temperatura
+  document.getElementById('temp-value').textContent =
+    temperatura.toFixed(1);
+
+  // Mezclado
+  document.getElementById('mix-value').textContent =
+    mezcla.toFixed(0);
+
+  // Timestamp
+  document.getElementById('last-update').textContent =
+    new Date(data.timestamp)
+      .toLocaleString('es-CO');
+
+}
+
+// Inicio
+fetchData();
+
+setInterval(fetchData,INTERVALO_MS);
+
 </script>
+
 </body>
 </html>
+```
